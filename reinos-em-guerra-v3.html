@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reinos em Guerra — Simulação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1c140c;
+    --bg-vignette: radial-gradient(ellipse at 50% -10%, #2f2113 0%, #1c140c 55%);
+    --panel:#251b10;
+    --panel-alt:#302414;
+    --border:#4a3a24;
+    --border-soft:#382c1a;
+    --ink:#f1e3c6;
+    --muted:#b8a077;
+    --muted-dim:#8c7452;
+    --gold:#e0913f;
+    --gold-dim:#a86b30;
+    --blood:#b5502f;
+    --teal:#8a9a4f;
+    --green:#9a9a4f;
+    --font-display:'Cinzel', serif;
+    --font-body:'IBM Plex Sans', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg-vignette), var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-track{background:var(--panel);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--gold-dim);}
+
+  .wrap{max-width:1480px;margin:0 auto;padding:20px 20px 60px;}
+
+  header.topbar{
+    display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between;
+    gap:16px; padding-bottom:16px; margin-bottom:18px;
+    border-bottom:1px solid var(--border);
+  }
+  .brand-block{display:flex; flex-direction:column; gap:4px;}
+  .eyebrow{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--gold); opacity:.85;
+  }
+  h1{
+    font-family:var(--font-display); font-weight:700; letter-spacing:.04em;
+    font-size:clamp(24px,3.4vw,34px); margin:0; text-transform:uppercase;
+    color:var(--ink);
+    text-shadow:0 0 24px rgba(201,162,76,.15);
+  }
+  .subtitle{color:var(--muted); font-size:13px; margin-top:2px;}
+
+  .stat-strip{display:flex; gap:20px; flex-wrap:wrap; align-items:center;}
+  .stat-mini{display:flex; flex-direction:column; align-items:flex-end; min-width:60px;}
+  .stat-mini .num{font-family:var(--font-mono); font-size:18px; font-weight:600; color:var(--ink);}
+  .stat-mini .lbl{font-size:9.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);}
+
+  .controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  button{
+    font-family:var(--font-body); font-weight:600; font-size:12px;
+    background:var(--panel-alt); color:var(--ink); border:1px solid var(--border);
+    padding:8px 12px; border-radius:4px; cursor:pointer; letter-spacing:.02em;
+    transition:border-color .15s, color .15s, background .15s;
+  }
+  button:hover{border-color:var(--gold-dim); color:var(--gold);}
+  button:focus-visible{outline:2px solid var(--gold); outline-offset:1px;}
+  button.active{background:var(--gold); color:#1a1608; border-color:var(--gold);}
+  button.ghost{background:transparent;}
+  button:disabled{opacity:.35; cursor:not-allowed;}
+  .speedgroup{display:flex; border:1px solid var(--border); border-radius:4px; overflow:hidden;}
+  .speedgroup button{border:none; border-right:1px solid var(--border); border-radius:0;}
+  .speedgroup button:last-child{border-right:none;}
+
+  nav.tabs{
+    display:flex; gap:2px; margin-bottom:18px; border-bottom:1px solid var(--border);
+    overflow-x:auto;
+  }
+  nav.tabs button{
+    background:transparent; border:none; border-bottom:2px solid transparent;
+    border-radius:0; padding:10px 16px; font-family:var(--font-display);
+    text-transform:uppercase; letter-spacing:.06em; font-size:13px; color:var(--muted);
+    white-space:nowrap;
+  }
+  nav.tabs button:hover{color:var(--ink); border-color:var(--border-soft);}
+  nav.tabs button.active{color:var(--gold); border-color:var(--gold);}
+
+  .panel{display:none;}
+  .panel.active{display:block; animation:fadein .25s ease;}
+  @keyframes fadein{from{opacity:0; transform:translateY(3px);} to{opacity:1; transform:translateY(0);}}
+
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:6px;}
+  .table-card{background:var(--panel); border:1px solid var(--border); border-radius:6px; overflow-x:auto;}
+
+  .map-layout{display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;}
+  .map-card{flex:2 1 640px; padding:14px; min-width:320px; position:relative;}
+  .map-card svg{width:100%; height:auto; display:block; border-radius:4px; background:#150f08; aspect-ratio:1/1;}
+  .map-events-card{flex:1 1 300px; min-width:260px; padding:14px; max-height:640px; display:flex; flex-direction:column;}
+  .map-events-card ul.events{max-height:none; flex:1; overflow-y:auto;}
+  .legend-card-bottom{margin-top:16px; padding:14px;}
+  .legend-card{flex:0 0 250px; padding:14px; max-height:660px; overflow-y:auto;}
+  .legend-title{
+    font-family:var(--font-display); font-size:12px; text-transform:uppercase;
+    letter-spacing:.08em; color:var(--gold); margin:0 0 10px; padding-bottom:8px;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .legend-strip{display:flex; flex-wrap:wrap; gap:8px 12px;}
+  .legend-chip{display:inline-flex; align-items:center; gap:7px; padding:6px 11px; border:1px solid var(--border-soft); border-radius:5px; font-size:12px; background:var(--panel-alt);}
+  .legend-row{display:flex; align-items:center; gap:8px; padding:5px 0; font-size:12.5px;}
+  .legend-swatch{width:10px; height:10px; border-radius:2px; flex:none; box-shadow:0 0 6px rgba(0,0,0,.4);}
+  .legend-tag{font-family:var(--font-mono); font-weight:600; color:var(--ink);}
+  .legend-pts{margin-left:auto; font-family:var(--font-mono); color:var(--muted); font-size:11px;}
+  .legend-empty{color:var(--muted); font-size:12.5px; font-style:italic;}
+  .map-hint{color:var(--muted-dim); font-size:11px; margin-top:8px; font-family:var(--font-mono); line-height:1.6;}
+  .tier-key{display:flex; gap:14px; flex-wrap:wrap; margin-top:6px;}
+  .tier-key span{display:inline-flex; align-items:center; gap:5px;}
+  .tier-swatch{width:12px; height:12px; border-radius:2px; background:#3a2c1a; flex:none;}
+
+  .map-nav{position:absolute; top:24px; right:24px; z-index:2; display:flex; flex-direction:column; align-items:center; gap:3px; background:rgba(12,15,24,.62); padding:6px; border-radius:7px; border:1px solid var(--border);}
+  .map-nav .nav-row{display:flex; gap:3px;}
+  .map-nav .nav-zoom{margin-top:4px; padding-top:4px; border-top:1px solid var(--border-soft);}
+  .map-nav button{width:26px; height:26px; padding:0; display:flex; align-items:center; justify-content:center; font-size:12px; line-height:1;}
+
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  thead th{
+    text-align:left; font-family:var(--font-mono); font-size:10px; text-transform:uppercase;
+    letter-spacing:.05em; color:var(--muted); padding:9px 10px; border-bottom:1px solid var(--border);
+    background:var(--panel); white-space:nowrap;
+  }
+  tbody td{padding:8px 10px; border-bottom:1px solid var(--border-soft); white-space:nowrap;}
+  tbody tr:hover{background:var(--panel-alt);}
+  tr.tribe-defeated{opacity:.55;}
+  .table-scroll{max-height:600px; overflow-y:auto; border-radius:6px;}
+  .pos{font-family:var(--font-mono); color:var(--muted);}
+  .pos.top1{color:var(--gold); font-weight:700;}
+  .pos.top2{color:#c7cad4;}
+  .pos.top3{color:#b98a5e;}
+  .pname{font-weight:600;}
+  .ptribe{font-family:var(--font-mono); font-size:11.5px;}
+  .tribe-chip{display:inline-flex; align-items:center; gap:6px;}
+  .dot{width:8px; height:8px; border-radius:2px; flex:none; display:inline-block;}
+  .none-tag{color:var(--muted-dim); font-style:italic;}
+  .pts{font-family:var(--font-mono); text-align:right;}
+  td.pts, th.pts{text-align:right;}
+  .status-badge{font-family:var(--font-mono); font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; padding:2px 7px; border-radius:3px; display:inline-block; white-space:nowrap;}
+  .status-active{background:rgba(127,174,106,.15); color:var(--green); border:1px solid rgba(127,174,106,.3);}
+  .status-defeated{background:rgba(193,73,90,.12); color:var(--blood); border:1px solid rgba(193,73,90,.35);}
+  .loy-badge{font-family:var(--font-mono); font-size:9.5px; padding:2px 7px; border-radius:3px; display:inline-block; white-space:nowrap; border:1px solid var(--border);}
+  .loy-1{color:var(--muted);}
+  .loy-2{color:var(--teal); border-color:rgba(79,184,172,.35);}
+  .loy-3{color:var(--gold); border-color:rgba(201,162,76,.35);}
+  .loy-4{color:#fff2c9; border-color:rgba(255,242,201,.4); background:rgba(255,242,201,.06);}
+  .founder-badge{font-family:var(--font-mono); font-size:9.5px; padding:2px 7px; border-radius:3px; display:inline-block; white-space:nowrap; background:rgba(224,145,63,.15); color:var(--gold); border:1px solid rgba(224,145,63,.35);}
+  .rank-arrow{display:inline-block; width:12px; text-align:center; font-size:11px;}
+  .rank-arrow.up{color:var(--green);}
+  .rank-arrow.down{color:var(--blood);}
+  .rank-arrow.neutral{color:var(--muted-dim);}
+
+  .pagination{display:flex; align-items:center; justify-content:center; gap:16px; padding:14px 0 4px;}
+  .pg-info{font-family:var(--font-mono); font-size:12px; color:var(--muted);}
+
+  .events-card{padding:6px 0;}
+  ul.events{list-style:none; margin:0; padding:0; max-height:660px; overflow-y:auto;}
+  ul.events li{
+    display:flex; gap:12px; padding:10px 16px; border-bottom:1px solid var(--border-soft);
+    border-left:3px solid var(--border);
+  }
+  ul.events li .ico{font-size:15px; flex:none; width:20px; text-align:center;}
+  ul.events li .day{font-family:var(--font-mono); font-size:11px; color:var(--muted); flex:none; width:52px; padding-top:1px;}
+  ul.events li .txt{font-size:13px; color:var(--ink); line-height:1.45;}
+  li.ev-conquest{border-left-color:var(--blood);}
+  li.ev-war{border-left-color:var(--blood);}
+  li.ev-alliance{border-left-color:var(--teal);}
+  li.ev-peace{border-left-color:var(--teal);}
+  li.ev-tribe_founded{border-left-color:var(--gold);}
+  li.ev-member_joined{border-left-color:var(--green);}
+  li.ev-member_left{border-left-color:var(--muted-dim);}
+  li.ev-tribe_disbanded{border-left-color:#555;}
+  li.ev-eliminated{border-left-color:#7a1f2b;}
+  li.ev-info{border-left-color:var(--gold-dim);}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px; margin-bottom:18px;}
+  .stat-card{padding:16px; text-align:left;}
+  .stat-card .num{font-family:var(--font-mono); font-size:26px; font-weight:600; color:var(--gold);}
+  .stat-card .lbl{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-top:4px;}
+  .subhead{
+    font-family:var(--font-display); text-transform:uppercase; letter-spacing:.06em;
+    font-size:14px; color:var(--ink); margin:26px 0 10px; padding-bottom:6px;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .war-pair{display:flex; align-items:center; gap:8px; font-size:13px; flex-wrap:wrap; padding:12px 16px; border-bottom:1px solid var(--border-soft);}
+  .war-vs{color:var(--muted-dim); font-family:var(--font-mono); font-size:11px;}
+  .war-tally{font-family:var(--font-mono); font-size:11px; color:var(--muted);}
+  .war-side{display:flex; align-items:center; gap:6px;}
+
+  .empty-note{padding:26px; text-align:center; color:var(--muted); font-size:13px; font-style:italic;}
+  footer.note{margin-top:26px; color:var(--muted-dim); font-size:11px; font-family:var(--font-mono); text-align:center;}
+
+  @media (max-width:720px){
+    .stat-strip{gap:12px;}
+    .stat-mini{align-items:flex-start;}
+    header.topbar{align-items:flex-start;}
+    .war-pair{font-size:12px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="topbar">
+    <div class="brand-block">
+      <span class="eyebrow">Simulação autônoma · apenas bots</span>
+      <h1>Reinos em Guerra</h1>
+      <div class="subtitle" id="subtitle">Mundo 1 — Dia 0</div>
+    </div>
+    <div class="stat-strip">
+      <div class="stat-mini"><span class="num" id="statAlive">—</span><span class="lbl">Vivos</span></div>
+      <div class="stat-mini"><span class="num" id="statTribes">—</span><span class="lbl">Tribos</span></div>
+      <div class="stat-mini"><span class="num" id="statWars">—</span><span class="lbl">Guerras</span></div>
+      <div class="stat-mini"><span class="num" id="statBarb">—</span><span class="lbl">Bárbaras</span></div>
+    </div>
+    <div class="controls">
+      <div class="speedgroup">
+        <button id="btnPause">Pausar</button>
+        <button id="sp05">0.5x</button>
+        <button id="sp1" class="active">1x</button>
+        <button id="sp3">3x</button>
+        <button id="sp10">10x</button>
+      </div>
+      <button id="btnReset" class="ghost">Reiniciar mundo</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button data-tab="mapa" class="active">Mapa</button>
+    <button data-tab="rankJogadores">Ranking de Jogadores</button>
+    <button data-tab="rankTribos">Ranking de Tribos</button>
+    <button data-tab="guerras">Estatísticas de Guerra</button>
+  </nav>
+
+  <section class="panel active" id="panel-mapa">
+    <div class="map-layout">
+      <div class="card map-card">
+        <div class="map-nav">
+          <button class="nav-up" title="Mover para cima">▲</button>
+          <div class="nav-row">
+            <button class="nav-left" title="Mover para esquerda">◀</button>
+            <button class="nav-reset" title="Centralizar">⟲</button>
+            <button class="nav-right" title="Mover para direita">▶</button>
+          </div>
+          <button class="nav-down" title="Mover para baixo">▼</button>
+          <div class="nav-row nav-zoom">
+            <button class="nav-zoom-out" title="Diminuir zoom (ver mapa inteiro)">－</button>
+            <button class="nav-zoom-in" title="Aumentar zoom">＋</button>
+          </div>
+        </div>
+        <svg id="mapSvg" viewBox="25 25 50 50" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="map-hint">
+          Cada quadrado é uma aldeia, todas do mesmo tamanho · a borda indica a força da aldeia · moldura laranja = capital da tribo · tracejado = aldeia bárbara · marrom sólido = jogador sem tribo · use as setas para navegar e os botões +/− para zoom
+          <div class="tier-key">
+            <span><span class="tier-swatch" style="border:1px solid #6b5a3f;"></span>até 1.000 pts</span>
+            <span><span class="tier-swatch" style="border:1.5px solid #b08a54;"></span>até 3.000 pts</span>
+            <span><span class="tier-swatch" style="border:2px solid #e0913f;"></span>até 7.000 pts</span>
+            <span><span class="tier-swatch" style="border:2.5px solid #ffd9a0;"></span>acima de 7.000 pts</span>
+          </div>
+        </div>
+      </div>
+      <div class="card map-events-card">
+        <p class="legend-title">Eventos recentes</p>
+        <ul class="events" id="eventsList"></ul>
+      </div>
+    </div>
+    <div class="card legend-card-bottom">
+      <p class="legend-title">Tribos no mapa (% das aldeias do mundo)</p>
+      <div id="legendList" class="legend-strip"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-rankJogadores">
+    <div class="table-card">
+      <table>
+        <thead><tr>
+          <th style="width:52px">#</th><th>Jogador</th><th>Tribo</th><th>Fidelidade</th>
+          <th style="width:70px">Aldeias</th><th class="pts" style="width:90px">Conq. guerra</th><th class="pts" style="width:100px">Pontos</th>
+        </tr></thead>
+        <tbody id="rankJogadoresBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="paginationJogadores"></div>
+  </section>
+
+  <section class="panel" id="panel-rankTribos">
+    <div class="table-card">
+      <table>
+        <thead><tr>
+          <th style="width:52px">#</th><th>Tag</th><th>Nome</th><th style="width:100px">Membros</th>
+          <th style="width:70px">Aldeias</th><th class="pts" style="width:90px">Conq. guerra</th><th class="pts" style="width:100px">Pontos</th><th style="width:70px">Dias</th>
+        </tr></thead>
+        <tbody id="rankTribosBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="paginationTribos"></div>
+  </section>
+
+  <section class="panel" id="panel-guerras">
+    <div class="stat-grid" id="warStatGrid"></div>
+    <div class="subhead">Guerras em andamento</div>
+    <div class="card" id="activeWarsCard"></div>
+    <div class="subhead">Conquistas e perdas em guerra, por tribo</div>
+    <div class="table-card">
+      <table>
+        <thead><tr><th style="width:48px">#</th><th>Tag</th><th>Nome</th><th class="pts">Conquistadas</th><th class="pts">Perdidas</th><th class="pts">Saldo</th></tr></thead>
+        <tbody id="warLossBody"></tbody>
+      </table>
+    </div>
+    <div class="subhead">Tribos mais guerreiras (total de conquistas)</div>
+    <div class="table-card">
+      <table>
+        <thead><tr><th style="width:48px">#</th><th>Tag</th><th>Nome</th><th class="pts">Conquistas</th></tr></thead>
+        <tbody id="warriorTribesBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="note">Mundo simulado inteiramente por bots · inclui jogadores reais do arquivo br63 do Tribal Wars</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- DATA POOLS ---------------- */
+  const FIRST_NAMES = ["Aldric","Bruno","Cael","Darian","Eryk","Fabio","Gareth","Henrik","Ivo","Joaquim","Kael","Leandro","Magnus","Nuno","Osric","Pedro","Quirino","Rurik","Silas","Teodoro","Ulric","Vasco","Wulfric","Xavier","Yorick","Zeno","Alaric","Bento","Cassian","Diego","Edric","Fausto","Godric","Hugo","Ivan","Jarl","Kaelan","Lucas","Mateus","Niklas","Otavio","Piero","Ragnar","Soren","Thiago","Ulf","Valter","Wystan","Yago","Baltasar","Caio","Delfim","Elio","Frederico","Gil","Heitor","Iago","Jorge","Klaus","Loureiro"];
+  const LAST_NAMES = ["do Vale","Ferreira","de Aragao","Wolfsbane","Silva","Correia","das Montanhas","Vasconcelos","Ironside","Duarte","Blackwood","Mendes","Stormrider","Cardoso","Ravensworth","Teixeira","Dragonheart","Almeida","Lobo","Castelo","Guerreiro","Fontes","do Norte","Bastos","Nogueira","Espada","Salazar","Pinheiro","Rocha","Cravo","Alves","Barbosa","Coelho","Falcao","Marinho","Ouro","Pedreira","Quental","Serpa","Tigre"];
+  const TRIBE_NOUNS = ["Lobos","Corvos","Aguias","Dragoes","Ursos","Falcoes","Leoes","Serpentes","Javalis","Touros","Espectros","Titas","Chacais","Gavioes","Lynces"];
+  const TRIBE_QUALIF = ["Negros","de Ferro","do Norte","Vermelhos","da Montanha","Sombrios","Selvagens","Imortais","de Sangue","da Aurora","do Caos","Sagrados","das Cinzas","Eternos","do Vale","da Tempestade","do Abismo","de Prata"];
+  const TRIBE_TAGS = ["WOLF","RAVN","IRON","BLDR","DRGN","STRM","NORD","FURY","GLRY","VNGD","AXES","BANE","CROW","GRIM","HAWK","OATH","REDX","SKUL","TIDE","WRTH","ASHE","BONE","CULT","DUSK","EMBR","FROST"];
+  const TRIBE_COLORS = ["#c1440e","#e0a52b","#8a9a4f","#4f8a7a","#a8548a","#d4a843","#7a5c3e","#b5502f","#d97b4f","#6b8e5a","#c98a3f","#9c5b8f","#e0b04f","#5a7a8e","#a15c3e","#7a9a6b","#c1795c","#9a7a4f","#5c8a6b","#d4886b","#8a6b9a","#4f8a7a","#c99a3f","#7a4f5c"];
+  const NEUTRAL_COLOR = "#6b5c46";
+  const BARBARIAN_FILL = "#3d3527";
+
+  // Jogadores reais do arquivo br63 (tribalwars.com.br/archive/br63/players). Os dois primeiros sao lendarios.
+  const REAL_NAMES = ["Slave Soul - Gkb","Krohanar - Salàh ad-Dìn","Medinagui","Logan DMC - G.T.","Lancelort","Antharas","PrinceEvans","Endurance","Regs","=Divergentes=","berranjo","Cartola-Soccer","xXxG*PxXx","Alcoólatras Anônimyss","Jonathan-rpm","MKmensageiro","Phillous","Mundus 46","broncador?","ENGUS.","Gorllewin Hunter","Kbça Dinossauro","gamestart","-Fenrir-","marden.pimenta","S4NIG4TO","Cavaleiro Tork","Xupeta","keepershow","Senhor Nelpi","Tom Jobim","gilmar12","-Kratos-","crazzytb","Forte Apache","Djnação","lordmarquez","Kurosaki Ichigo","Senhor Phoenix","- JL.","XxNo Pain No GainxX","alienor","odecio35","Alberto Capela","skelator","prasantos","alegorgueira","Eddie Master","VonUcci","miyutchan","mguise","Bian.Fu","macrom","mlsa","vitorfloress","ezfilho","Regguero","DavidKabelo","bananagran","jhenco","the Pelvis","alan.luis","pumba","westzika","Tiagossp","Cezaranog","nilsonruas","ruycool","chefia da morte","torales","ManiacKiller.","oieoieoieoie","clauslei","cveber","jcsouza81","coelhus","Aklem","Jonzy","Monarch Julius","marcos ferreira girao","dulhy gerreiro","Dalcim2010","Dougtrin","allexdenis","Xx3DANIEL3xX","wesleyferreira","frogkiller","edusuzaki","gatodavidy","Vila Pampa","rafaelgranciero","maaarceeelo","arcardoso","Mr. Death","julsnepo","liro80","psydu","samuca500","Guilygui","CaçadorFantasma","Eduardofontes","mpmuga","Atreu","eduardonpp","hateenk2","jhonatan brasil","sgt-itamir","helenasg","Geninhobh","jpmjunior","m.marques25","Richard Cavalli","sapoo","mabioliveira","xeresc","trochao","Antoniodornelles","ray.lima","Lary*","cayo22","Badulaque","WENDERZEBIL","Habif","duque rogério","PranchaRJ","joao orlando II","Makina21","jonatas2012","gilvani 16","TOMANE83","De Vita","santos lara","portoamado","CACO1997","kleller","jef jan","zeca45","cabelo rodrigo 1","mac547","Cavaleiro Salomão","fabiovieira","maluqueiro 2","oiciruam","Dikjann","Helcio61","jonleal","Jose Paulo Coelho","Jarm","capitão35","Izzah","richeter","grisotti","GIUVANEXx","edelpes","bia12345","diogoa12"];
+  const LEGENDARY_NAMES = ["Slave Soul - Gkb","Krohanar - Salàh ad-Dìn"];
+  const SKILLED_NAMES = ["alegorgueira","Eddie Master"];
+
+  /* ---------------- CONFIG ---------------- */
+  const CFG = {
+    WORLD:100, N_PLAYERS:200, N_BARBARIANS:40, MAX_POINTS:12000, MAX_MEMBERS:10,
+    MAX_TRIBES:24, TICK_MS:1000, GRID:17, SQUARE:3.0, ATTACK_THRESHOLD:3000
+  };
+
+  /* ---------------- HELPERS ---------------- */
+  function rnd(min,max){ return Math.random()*(max-min)+min; }
+  function rndInt(min,max){ return Math.floor(rnd(min,max+1)); }
+  function choice(arr){ return arr[rndInt(0,arr.length-1)]; }
+  function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=rndInt(0,i); const tmp=a[i]; a[i]=a[j]; a[j]=tmp; } return a; }
+  function distXY(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+  function relKey(a,b){ return a<b ? a+"_"+b : b+"_"+a; }
+  function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+  function fmt(n){ return Math.round(n).toLocaleString('pt-BR'); }
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  /* ---------------- STATE ---------------- */
+  let state=null, timer=null, speed=1, tickAccum=0, paused=false, activeTab='mapa';
+  let mapView = { x:25, y:25, w:50, h:50 };
+  let rankPlayersPage=1, rankTribesPage=1;
+
+  function initWorld(){
+    state = {
+      day:0,
+      players:{}, villages:{}, tribes:{}, relations:{},
+      events:[],
+      nextIds:{p:0,v:0,t:0},
+      colorPool: shuffle(TRIBE_COLORS),
+      tagPool: shuffle(TRIBE_TAGS),
+      stats:{warsDeclared:0, alliances:0, battles:0, conquests:0, tribesDisbanded:0, playersEliminated:0},
+      prevPlayerRank:{}, currPlayerRank:{}, prevTribeRank:{}, currTribeRank:{}
+    };
+    rankPlayersPage=1; rankTribesPage=1;
+
+    const totalCells = CFG.GRID*CFG.GRID;
+    const cellSize = CFG.WORLD/CFG.GRID;
+    const need = CFG.N_PLAYERS + CFG.N_BARBARIANS;
+    const cellIdx = shuffle(Array.from({length:totalCells}, function(_,i){return i;})).slice(0,need);
+
+    const usedNames = new Set();
+    const namePool = shuffle(REAL_NAMES.slice());
+    function nextProceduralName(){
+      let name;
+      do{ name = choice(FIRST_NAMES)+" "+choice(LAST_NAMES); } while(usedNames.has(name));
+      return name;
+    }
+
+    for(let i=0;i<CFG.N_PLAYERS;i++){
+      let name;
+      if(i < namePool.length){ name = namePool[i]; } else { name = nextProceduralName(); }
+      usedNames.add(name);
+
+      const pid = state.nextIds.p++;
+      const vid = state.nextIds.v++;
+      const idx = cellIdx[i];
+      const col = idx % CFG.GRID, row = Math.floor(idx/CFG.GRID);
+      const x = (col+0.5)*cellSize, y = (row+0.5)*cellSize;
+
+      state.villages[vid] = { id:vid, ownerId:pid, x, y, points:1, isBarbarian:false };
+      const legendary = LEGENDARY_NAMES.indexOf(name) !== -1;
+      const skilled = !legendary && SKILLED_NAMES.indexOf(name) !== -1;
+      state.players[pid] = { id:pid, name, villages:[vid], tribeId:null, tribeJoinedDay:null, eliminated:false, points:1, legendary, skilled, warConquered:0, lastLeftTribeId:null, lastLeftDay:null };
+    }
+
+    for(let i=0;i<CFG.N_BARBARIANS;i++){
+      const vid = state.nextIds.v++;
+      const idx = cellIdx[CFG.N_PLAYERS+i];
+      const col = idx % CFG.GRID, row = Math.floor(idx/CFG.GRID);
+      const x = (col+0.5)*cellSize, y = (row+0.5)*cellSize;
+      state.villages[vid] = { id:vid, ownerId:null, x, y, points: rndInt(50,400), isBarbarian:true };
+    }
+
+    logEvent('info', 'O mundo comecou com '+CFG.N_PLAYERS+' jogadores em igualdade, cada um com uma unica aldeia, e '+CFG.N_BARBARIANS+' aldeias barbaras espalhadas pelo mapa.');
+  }
+
+  function logEvent(type, text){
+    state.events.unshift({ day: state.day, type, text });
+    if(state.events.length > 500) state.events.length = 500;
+  }
+
+  function newTribeTag(){
+    if(state.tagPool.length) return state.tagPool.pop();
+    const letters="BCDFGHJKLMNPQRSTVWXZ";
+    let t=''; for(let i=0;i<4;i++) t+=letters[rndInt(0,letters.length-1)];
+    return t;
+  }
+  function newTribeColor(){
+    if(state.colorPool.length) return state.colorPool.pop();
+    return '#'+Math.floor(rnd(0,0xffffff)).toString(16).padStart(6,'0');
+  }
+
+  function alivePlayers(){ return Object.values(state.players).filter(function(p){return !p.eliminated;}); }
+  function activeTribes(){ return Object.values(state.tribes).filter(function(t){return !t.disbanded;}); }
+  function tribeOf(p){ return p.tribeId ? state.tribes[p.tribeId] : null; }
+  function getRelation(aId,bId){ return state.relations[relKey(aId,bId)] || null; }
+  function setRelation(aId,bId,type){ state.relations[relKey(aId,bId)] = { type, since: state.day, tally:{} }; }
+  function countAllies(tribeId){
+    let c = 0;
+    for(const key of Object.keys(state.relations)){
+      const rel = state.relations[key];
+      if(rel.type !== 'alliance') continue;
+      const parts = key.split('_').map(Number);
+      if(parts.indexOf(tribeId) === -1) continue;
+      const otherId = parts[0]===tribeId ? parts[1] : parts[0];
+      const other = state.tribes[otherId];
+      if(other && !other.disbanded) c++;
+    }
+    return c;
+  }
+
+  function dynamicMaxTribes(){
+    const n = alivePlayers().length;
+    return clamp(Math.round(n/12), 2, CFG.MAX_TRIBES);
+  }
+
+  /* ---------------- SIMULATION STEPS ---------------- */
+  function growVillages(){
+    for(const v of Object.values(state.villages)){
+      if(v.points >= CFG.MAX_POINTS) continue;
+      if(v.isBarbarian){
+        if(Math.random() < 0.05){
+          const barbAmt = clamp(Math.round(v.points*0.01) + rndInt(1,3), 1, 100);
+          v.points = Math.min(CFG.MAX_POINTS, v.points + barbAmt);
+        }
+        continue;
+      }
+      const owner = state.players[v.ownerId];
+      const isLegend = owner && owner.legendary;
+      const isSkilled = owner && owner.skilled;
+      const prob = isLegend ? 0.45 : isSkilled ? 0.37 : 0.30;
+      if(Math.random() < prob){
+        let amt = clamp(Math.round(v.points*0.015) + rndInt(1,4), 1, 100);
+        if(isLegend) amt = clamp(Math.round(amt*1.6), 1, 100);
+        else if(isSkilled) amt = clamp(Math.round(amt*1.25), 1, 100);
+        v.points = Math.min(CFG.MAX_POINTS, v.points + amt);
+      }
+    }
+  }
+
+  function tribeCentroid(tribe){
+    let sx=0, sy=0, n=0;
+    for(const pid of tribe.memberIds){
+      const p = state.players[pid];
+      if(!p || p.eliminated) continue;
+      for(const vid of p.villages){ const v=state.villages[vid]; sx+=v.x; sy+=v.y; n++; }
+    }
+    if(n===0) return {x:CFG.WORLD/2,y:CFG.WORLD/2};
+    return {x:sx/n, y:sy/n};
+  }
+
+  function handleTribeFormation(){
+    if(activeTribes().length >= dynamicMaxTribes()) return;
+    if(Math.random() > 0.06) return;
+    const candidates = alivePlayers().filter(function(p){return !p.tribeId && p.points > 30;});
+    if(!candidates.length) return;
+    const founder = choice(candidates);
+    const id = state.nextIds.t++;
+    const name = choice(TRIBE_NOUNS)+" "+choice(TRIBE_QUALIF);
+    const tribe = { id, tag:newTribeTag(), name, color:newTribeColor(), memberIds:[founder.id], founded:state.day,
+      disbanded:false, conquests:0, warConquered:0, warLost:0, peakMembers:1, founderId:founder.id, lastWarDay:state.day };
+    state.tribes[id] = tribe;
+    founder.tribeId = id;
+    founder.tribeJoinedDay = state.day;
+    logEvent('tribe_founded', 'A tribo <b>['+tribe.tag+']</b> '+esc(tribe.name)+' foi fundada por '+esc(founder.name)+'.');
+  }
+
+  function handleTribeJoining(){
+    const tribeless = alivePlayers().filter(function(p){return !p.tribeId;});
+    const sample = shuffle(tribeless).slice(0,6);
+    const open = activeTribes().filter(function(t){return t.memberIds.length < CFG.MAX_MEMBERS;});
+    if(!open.length) return;
+    for(const p of sample){
+      if(Math.random() > 0.16) continue;
+      const village = state.villages[p.villages[0]];
+      let best=null, bestD=Infinity;
+      for(const t of open){
+        if(t.memberIds.length >= CFG.MAX_MEMBERS) continue;
+        if(p.lastLeftTribeId === t.id && p.lastLeftDay != null && (state.day - p.lastLeftDay) < 10) continue;
+        const c = tribeCentroid(t);
+        const d = village ? distXY(village,c) : Math.random()*100;
+        const score = d + Math.random()*20;
+        if(score < bestD){ bestD=score; best=t; }
+      }
+      if(best){
+        best.memberIds.push(p.id);
+        if(best.memberIds.length > (best.peakMembers||0)) best.peakMembers = best.memberIds.length;
+        p.tribeId = best.id;
+        p.tribeJoinedDay = state.day;
+        logEvent('member_joined', esc(p.name)+' entrou na tribo <b>['+best.tag+']</b> '+esc(best.name)+'.');
+      }
+    }
+  }
+
+  function handleTribeLeaving(){
+    for(const t of activeTribes()){
+      for(const pid of t.memberIds.slice()){
+        const p = state.players[pid];
+        if(!p || p.eliminated) continue;
+        const loyaltyDays = p.tribeJoinedDay!=null ? (state.day - p.tribeJoinedDay) : 0;
+        const leaveProb = Math.max(0.0008, 0.006 - loyaltyDays*0.00004);
+        if(Math.random() < leaveProb){
+          t.memberIds = t.memberIds.filter(function(id){return id!==pid;});
+          p.tribeId = null;
+          p.tribeJoinedDay = null;
+          p.lastLeftTribeId = t.id;
+          p.lastLeftDay = state.day;
+          logEvent('member_left', esc(p.name)+' deixou a tribo <b>['+t.tag+']</b> '+esc(t.name)+'.');
+        }
+      }
+    }
+  }
+
+  function checkTribeDisbands(){
+    const cap = dynamicMaxTribes();
+    const countNow = activeTribes().length;
+    for(const t of activeTribes()){
+      const aliveMembers = t.memberIds.filter(function(pid){return state.players[pid] && !state.players[pid].eliminated;});
+      t.memberIds = aliveMembers;
+      if(t.memberIds.length === 0){
+        t.disbanded = true;
+        t.pointsAtDisband = t.points || 0;
+        t.villageCountAtDisband = t.villageCount || 0;
+        state.stats.tribesDisbanded++;
+        logEvent('tribe_disbanded', 'A tribo <b>['+t.tag+']</b> '+esc(t.name)+' foi debandada e esta agora derrotada.');
+        cleanupRelations(t.id);
+      } else if(countNow > cap && t.memberIds.length <= 2 && Math.random() < 0.03){
+        for(const pid of t.memberIds){
+          const p = state.players[pid];
+          if(p){ p.tribeId = null; p.tribeJoinedDay = null; }
+        }
+        t.pointsAtDisband = t.points || 0;
+        t.villageCountAtDisband = t.villageCount || 0;
+        t.memberIds = [];
+        t.disbanded = true;
+        state.stats.tribesDisbanded++;
+        logEvent('tribe_disbanded', 'A tribo <b>['+t.tag+']</b> '+esc(t.name)+' se dissolveu por falta de forcas, e seus guerreiros buscarao tribos maiores.');
+        cleanupRelations(t.id);
+      }
+    }
+  }
+
+  function cleanupRelations(tribeId){
+    for(const key of Object.keys(state.relations)){
+      const parts = key.split('_').map(Number);
+      if(parts.indexOf(tribeId) !== -1) delete state.relations[key];
+    }
+  }
+
+  function handleDiplomacy(){
+    const tribes = activeTribes();
+    if(tribes.length < 2) return;
+    for(let attempt=0; attempt<3; attempt++){
+      if(Math.random() > 0.05) continue;
+      const a = choice(tribes), b = choice(tribes);
+      if(a.id === b.id) continue;
+      const rel = getRelation(a.id,b.id);
+      if(rel) continue;
+      const allyLimit = Math.max(1, Math.floor(tribes.length/2));
+      let wantsAlliance = Math.random() < 0.45;
+      if(wantsAlliance && (countAllies(a.id) >= allyLimit || countAllies(b.id) >= allyLimit)){
+        wantsAlliance = false;
+      }
+      if(wantsAlliance){
+        setRelation(a.id,b.id,'alliance');
+        state.stats.alliances++;
+        logEvent('alliance', 'As tribos <b>['+a.tag+']</b> e <b>['+b.tag+']</b> formaram uma alianca.');
+      } else {
+        setRelation(a.id,b.id,'war');
+        state.stats.warsDeclared++;
+        logEvent('war', 'A tribo <b>['+a.tag+']</b> declarou guerra a <b>['+b.tag+']</b>.');
+      }
+    }
+    for(const key of Object.keys(state.relations)){
+      const rel = state.relations[key];
+      if(rel.type === 'war' && Math.random() < 0.01){
+        const parts = key.split('_').map(Number);
+        const a = state.tribes[parts[0]], b = state.tribes[parts[1]];
+        if(a && b && !a.disbanded && !b.disbanded){
+          const ca = (rel.tally && rel.tally[a.id]) || 0;
+          const cb = (rel.tally && rel.tally[b.id]) || 0;
+          delete state.relations[key];
+          logEvent('peace', 'As tribos <b>['+a.tag+']</b> e <b>['+b.tag+']</b> assinaram a paz. ('+a.tag+' conquistou '+ca+' · '+b.tag+' conquistou '+cb+')');
+        }
+      }
+    }
+  }
+
+  function updateWarActivity(){
+    for(const t of activeTribes()){
+      let atWar = false;
+      for(const key of Object.keys(state.relations)){
+        const rel = state.relations[key];
+        if(rel.type !== 'war') continue;
+        const parts = key.split('_').map(Number);
+        if(parts.indexOf(t.id) !== -1){ atWar = true; break; }
+      }
+      if(atWar) t.lastWarDay = state.day;
+    }
+  }
+
+  function handleWarBoredom(){
+    for(const t of activeTribes()){
+      const lastWar = (t.lastWarDay != null) ? t.lastWarDay : t.founded;
+      if(state.day - lastWar <= 30) continue;
+      const allies = [];
+      for(const key of Object.keys(state.relations)){
+        const rel = state.relations[key];
+        if(rel.type !== 'alliance') continue;
+        const parts = key.split('_').map(Number);
+        if(parts.indexOf(t.id) === -1) continue;
+        const otherId = parts[0]===t.id ? parts[1] : parts[0];
+        const other = state.tribes[otherId];
+        if(other && !other.disbanded) allies.push(other);
+      }
+      if(!allies.length) continue;
+      const target = choice(allies);
+      delete state.relations[relKey(t.id,target.id)];
+      setRelation(t.id,target.id,'war');
+      state.stats.warsDeclared++;
+      t.lastWarDay = state.day;
+      target.lastWarDay = state.day;
+      logEvent('war', 'Apos mais de 30 dias sem conflitos, a tribo <b>['+t.tag+']</b> rompeu a alianca com <b>['+target.tag+']</b> e declarou guerra.');
+    }
+  }
+
+  function eliminatePlayer(p){
+    p.eliminated = true;
+    state.stats.playersEliminated++;
+    logEvent('eliminated', esc(p.name)+' foi eliminado do jogo.');
+    if(p.tribeId){
+      const t = state.tribes[p.tribeId];
+      if(t) t.memberIds = t.memberIds.filter(function(id){return id!==p.id;});
+      p.tribeId = null;
+      p.tribeJoinedDay = null;
+    }
+    for(const t of activeTribes()){
+      if(t.founderId !== p.id) continue;
+      if(Math.random() < 0.7){
+        for(const pid of t.memberIds){
+          const m = state.players[pid];
+          if(m){ m.tribeId = null; m.tribeJoinedDay = null; m.lastLeftTribeId = t.id; m.lastLeftDay = state.day; }
+        }
+        t.pointsAtDisband = t.points || 0;
+        t.villageCountAtDisband = t.villageCount || 0;
+        t.memberIds = [];
+        t.disbanded = true;
+        state.stats.tribesDisbanded++;
+        cleanupRelations(t.id);
+        logEvent('tribe_disbanded', 'O fundador '+esc(p.name)+' foi eliminado e a tribo <b>['+t.tag+']</b> '+esc(t.name)+' se debandou, com todos os membros deixando-a.');
+      } else {
+        logEvent('info', 'O fundador '+esc(p.name)+' da tribo <b>['+t.tag+']</b> '+esc(t.name)+' foi eliminado, mas a tribo resistiu.');
+      }
+    }
+  }
+
+  function handleBattles(){
+    const villageList = Object.values(state.villages);
+    if(villageList.length < 2) return;
+    for(let attempt=0; attempt<8; attempt++){
+      const attackerVillage = choice(villageList);
+      if(attackerVillage.isBarbarian) continue;
+      if(attackerVillage.points < CFG.ATTACK_THRESHOLD) continue;
+      const attacker = state.players[attackerVillage.ownerId];
+      if(!attacker || attacker.eliminated) continue;
+      const attackerTribe = attacker.tribeId ? state.tribes[attacker.tribeId] : null;
+
+      let best=null, bestD=Infinity, bestDefenderTribe=null, bestDefenderPlayer=null;
+      for(const target of villageList){
+        if(target.id === attackerVillage.id) continue;
+        const d = distXY(attackerVillage, target);
+        if(d > 20) continue;
+
+        if(target.isBarbarian){
+          if(d < bestD){ bestD=d; best=target; bestDefenderTribe=null; bestDefenderPlayer=null; }
+          continue;
+        }
+        if(target.ownerId === attacker.id) continue;
+        const defender = state.players[target.ownerId];
+        if(!defender || defender.eliminated) continue;
+        const defenderTribe = defender.tribeId ? state.tribes[defender.tribeId] : null;
+
+        let valid = false;
+        if(attackerTribe && defenderTribe){
+          const rel = getRelation(attackerTribe.id, defenderTribe.id);
+          valid = !!(rel && rel.type === 'war');
+        } else if(attackerTribe && !defenderTribe){
+          valid = target.points < attackerVillage.points * 0.55;
+        } else if(!attackerTribe && !defenderTribe){
+          valid = target.points < attackerVillage.points * 0.6 && Math.random() < 0.5;
+        } else {
+          valid = false;
+        }
+        if(valid && d < bestD){ bestD = d; best = target; bestDefenderTribe = defenderTribe; bestDefenderPlayer = defender; }
+      }
+      if(!best) continue;
+
+      state.stats.battles++;
+      const wasWarBattle = !!(attackerTribe && bestDefenderTribe);
+      let chance = attackerVillage.points / (attackerVillage.points + best.points + 1) * (best.isBarbarian?0.9:0.85) + 0.08;
+      if(attacker.legendary) chance += 0.12;
+      else if(attacker.skilled) chance += 0.06;
+      if(bestDefenderPlayer && bestDefenderPlayer.legendary) chance -= 0.12;
+      else if(bestDefenderPlayer && bestDefenderPlayer.skilled) chance -= 0.06;
+      chance = clamp(chance, 0.05, 0.95);
+
+      if(Math.random() < chance){
+        if(best.isBarbarian){
+          best.isBarbarian = false;
+          best.ownerId = attacker.id;
+          best.points = Math.max(1, Math.round(best.points*0.8));
+          attacker.villages.push(best.id);
+          state.stats.conquests++;
+          if(attackerTribe) attackerTribe.conquests = (attackerTribe.conquests||0) + 1;
+          logEvent('conquest', esc(attacker.name)+(attackerTribe?' <b>['+attackerTribe.tag+']</b>':'')+' conquistou uma aldeia barbara.');
+        } else {
+          const defender = bestDefenderPlayer;
+          defender.villages = defender.villages.filter(function(id){return id!==best.id;});
+          best.ownerId = attacker.id;
+          best.points = Math.max(1, Math.round(best.points * 0.6));
+          attacker.villages.push(best.id);
+          state.stats.conquests++;
+          if(attackerTribe) attackerTribe.conquests = (attackerTribe.conquests||0) + 1;
+
+          if(wasWarBattle){
+            attackerTribe.warConquered = (attackerTribe.warConquered||0) + 1;
+            bestDefenderTribe.warLost = (bestDefenderTribe.warLost||0) + 1;
+            attacker.warConquered = (attacker.warConquered||0) + 1;
+            const rk = relKey(attackerTribe.id, bestDefenderTribe.id);
+            const rel2 = state.relations[rk];
+            if(rel2){
+              rel2.tally = rel2.tally || {};
+              rel2.tally[attackerTribe.id] = (rel2.tally[attackerTribe.id]||0) + 1;
+            }
+          }
+
+          logEvent('conquest', esc(attacker.name)+(attackerTribe?' <b>['+attackerTribe.tag+']</b>':'')+' conquistou uma aldeia de '+esc(defender.name)+(bestDefenderTribe ? ' <b>['+bestDefenderTribe.tag+']</b>' : '')+'.');
+          if(defender.villages.length === 0){
+            eliminatePlayer(defender);
+          }
+        }
+      }
+    }
+  }
+
+  function computeAggregates(){
+    for(const p of Object.values(state.players)){
+      p.points = p.villages.reduce(function(s,vid){ const v=state.villages[vid]; return s + (v?v.points:0); }, 0);
+    }
+    for(const t of Object.values(state.tribes)){
+      if(t.disbanded) continue;
+      let pts=0, vc=0;
+      for(const pid of t.memberIds){
+        const p = state.players[pid];
+        if(!p) continue;
+        pts += p.points; vc += p.villages.length;
+      }
+      t.points = pts; t.villageCount = vc;
+    }
+  }
+
+  function updateRankSnapshots(){
+    const playersSorted = alivePlayers().slice().sort(function(a,b){return b.points-a.points;});
+    const newPlayerRank = {};
+    playersSorted.forEach(function(p,i){ newPlayerRank[p.id] = i+1; });
+    state.prevPlayerRank = state.currPlayerRank || {};
+    state.currPlayerRank = newPlayerRank;
+
+    const tribesSorted = activeTribes().slice().sort(function(a,b){ return (b.points||0) - (a.points||0); });
+    const newTribeRank = {};
+    tribesSorted.forEach(function(t,i){ newTribeRank[t.id] = i+1; });
+    state.prevTribeRank = state.currTribeRank || {};
+    state.currTribeRank = newTribeRank;
+  }
+
+  function simulateOneDay(){
+    state.day++;
+    growVillages();
+    handleTribeFormation();
+    handleTribeJoining();
+    handleTribeLeaving();
+    handleDiplomacy();
+    updateWarActivity();
+    handleWarBoredom();
+    handleBattles();
+    checkTribeDisbands();
+    computeAggregates();
+    updateRankSnapshots();
+  }
+
+  /* ---------------- RENDER ---------------- */
+  const el = function(id){ return document.getElementById(id); };
+
+  function renderHeaderBar(){
+    el('subtitle').textContent = 'Mundo 1 — Dia ' + state.day;
+    el('statAlive').textContent = alivePlayers().length;
+    el('statTribes').textContent = activeTribes().length;
+    const warCount = Object.values(state.relations).filter(function(r){return r.type==='war';}).length;
+    el('statWars').textContent = warCount;
+    const barbCount = Object.values(state.villages).filter(function(v){return v.isBarbarian;}).length;
+    el('statBarb').textContent = barbCount;
+  }
+
+  function tribeCapitals(){
+    const caps = {};
+    for(const t of activeTribes()){
+      let best=null;
+      for(const pid of t.memberIds){
+        const p = state.players[pid];
+        if(!p) continue;
+        for(const vid of p.villages){
+          const v = state.villages[vid];
+          if(!best || v.points > best.points) best = v;
+        }
+      }
+      if(best) caps[best.id] = true;
+    }
+    return caps;
+  }
+
+  function villageTierStyle(points){
+    if(points <= 1000) return { sw:0.10, color:'#6b5a3f' };
+    if(points <= 3000) return { sw:0.18, color:'#b08a54' };
+    if(points <= 7000) return { sw:0.27, color:'#e0913f' };
+    return { sw:0.38, color:'#ffd9a0' };
+  }
+
+  function renderMap(){
+    const svg = el('mapSvg');
+    const caps = tribeCapitals();
+    let s = '';
+    for(let i=0;i<=100;i+=10){
+      s += '<line x1="'+i+'" y1="0" x2="'+i+'" y2="100" stroke="#3a2c1a" stroke-width="0.15"/>';
+      s += '<line x1="0" y1="'+i+'" x2="100" y2="'+i+'" stroke="#3a2c1a" stroke-width="0.15"/>';
+    }
+    const half = CFG.SQUARE/2;
+    for(const v of Object.values(state.villages)){
+      const style = villageTierStyle(v.points);
+      if(v.isBarbarian){
+        const label = 'Aldeia barbara \u2014 ' + fmt(v.points) + ' pts';
+        s += '<rect x="'+(v.x-half)+'" y="'+(v.y-half)+'" width="'+CFG.SQUARE+'" height="'+CFG.SQUARE+'" fill="'+BARBARIAN_FILL+'" stroke="'+style.color+'" stroke-width="'+style.sw+'" stroke-dasharray="0.6,0.45" rx="0.2"><title>'+label+'</title></rect>';
+        continue;
+      }
+      const owner = state.players[v.ownerId];
+      if(!owner || owner.eliminated) continue;
+      const t = tribeOf(owner);
+      const color = t ? t.color : NEUTRAL_COLOR;
+      const label = (owner.legendary?'\uD83D\uDC51 ':'') + esc(owner.name) + ' \u2014 ' + (t ? '['+t.tag+'] '+esc(t.name) : 'Sem tribo') + ' \u2014 ' + fmt(v.points) + ' pts';
+      if(caps[v.id]){
+        s += '<rect x="'+(v.x-half-1)+'" y="'+(v.y-half-1)+'" width="'+(CFG.SQUARE+2)+'" height="'+(CFG.SQUARE+2)+'" fill="none" stroke="#e0913f" stroke-width="0.28" opacity="0.85" rx="0.3"/>';
+      }
+      s += '<rect x="'+(v.x-half)+'" y="'+(v.y-half)+'" width="'+CFG.SQUARE+'" height="'+CFG.SQUARE+'" fill="'+color+'" stroke="'+style.color+'" stroke-width="'+style.sw+'" rx="0.2"><title>'+label+'</title></rect>';
+    }
+    svg.innerHTML = s;
+  }
+
+  function renderLegend(){
+    const tribes = activeTribes().slice().sort(function(a,b){return b.points-a.points;});
+    const wrap = el('legendList');
+    if(!tribes.length){ wrap.innerHTML = '<div class="legend-empty">Nenhuma tribo formada ainda. Aguarde os jogadores se organizarem...</div>'; return; }
+    const totalVillages = Object.keys(state.villages).length || 1;
+    wrap.innerHTML = tribes.map(function(t){
+      const pct = ((t.villageCount||0) / totalVillages * 100).toFixed(1);
+      return '<div class="legend-chip">'+
+        '<span class="legend-swatch" style="background:'+t.color+'"></span>'+
+        '<span class="legend-tag">['+t.tag+']</span>'+
+        '<span>'+esc(t.name)+'</span>'+
+        '<span class="legend-pts">'+pct+'%</span>'+
+      '</div>';
+    }).join('');
+  }
+
+  function renderPagination(containerId, totalItems, page, perPage, onChange){
+    const totalPages = Math.max(1, Math.ceil(totalItems/perPage));
+    if(page > totalPages) page = totalPages;
+    if(page < 1) page = 1;
+    const c = el(containerId);
+    c.innerHTML =
+      '<button class="pg-prev"'+(page<=1?' disabled':'')+'>\u2039 Anterior</button>'+
+      '<span class="pg-info">Pagina '+page+' de '+totalPages+' \u00b7 '+totalItems+' no total</span>'+
+      '<button class="pg-next"'+(page>=totalPages?' disabled':'')+'>Proxima \u203a</button>';
+    const prevBtn = c.querySelector('.pg-prev'), nextBtn = c.querySelector('.pg-next');
+    if(prevBtn) prevBtn.addEventListener('click', function(){ onChange(Math.max(1,page-1)); });
+    if(nextBtn) nextBtn.addEventListener('click', function(){ onChange(Math.min(totalPages,page+1)); });
+    return page;
+  }
+
+  function loyaltyTier(days){
+    if(days>=120) return {label:'Inabalavel', cls:'loy-4'};
+    if(days>=50) return {label:'Veterano', cls:'loy-3'};
+    if(days>=15) return {label:'Leal', cls:'loy-2'};
+    return {label:'Novato', cls:'loy-1'};
+  }
+
+  function arrowHtml(curPos, prevPos){
+    if(prevPos===undefined || prevPos===null){ return '<span class="rank-arrow neutral">•</span>'; }
+    if(curPos < prevPos){ return '<span class="rank-arrow up">\u25B2</span>'; }
+    if(curPos > prevPos){ return '<span class="rank-arrow down">\u25BC</span>'; }
+    return '<span class="rank-arrow neutral">\u2500</span>';
+  }
+
+  function renderRankJogadores(){
+    const players = alivePlayers().slice().sort(function(a,b){return b.points-a.points;});
+    const perPage = 20;
+    rankPlayersPage = renderPagination('paginationJogadores', players.length, rankPlayersPage, perPage, function(p){
+      rankPlayersPage = p; renderRankJogadores();
+    });
+    const startIdx = (rankPlayersPage-1)*perPage;
+    const pageItems = players.slice(startIdx, startIdx+perPage);
+    const body = el('rankJogadoresBody');
+    if(!players.length){ body.innerHTML = '<tr><td colspan="7" class="empty-note">Nenhum jogador vivo.</td></tr>'; return; }
+    const prevRank = state.prevPlayerRank || {};
+    body.innerHTML = pageItems.map(function(p,i){
+      const pos = startIdx+i+1;
+      const posClass = pos===1?'top1':pos===2?'top2':pos===3?'top3':'';
+      const legendIcon = p.legendary ? ' \uD83D\uDC51' : '';
+      const t = tribeOf(p);
+      const isFounder = t && t.founderId === p.id;
+      const founderTag = isFounder ? ' <span class="founder-badge">Fundador</span>' : '';
+      const tribeHtml = t ? '<span class="tribe-chip"><span class="dot" style="background:'+t.color+'"></span>['+t.tag+']</span>' : '<span class="none-tag">sem tribo</span>';
+      let loyHtml = '<span class="none-tag">—</span>';
+      if(p.tribeId && p.tribeJoinedDay!=null){
+        const days = state.day - p.tribeJoinedDay;
+        const tier = loyaltyTier(days);
+        loyHtml = '<span class="loy-badge '+tier.cls+'">'+tier.label+' ('+days+'d)</span>';
+      }
+      return '<tr>'+
+        '<td class="pos '+posClass+'">'+arrowHtml(pos, prevRank[p.id])+' '+pos+'</td>'+
+        '<td class="pname">'+esc(p.name)+legendIcon+founderTag+'</td>'+
+        '<td class="ptribe">'+tribeHtml+'</td>'+
+        '<td>'+loyHtml+'</td>'+
+        '<td>'+p.villages.length+'</td>'+
+        '<td class="pts">'+(p.warConquered||0)+'</td>'+
+        '<td class="pts">'+fmt(p.points)+'</td>'+
+      '</tr>';
+    }).join('');
+  }
+
+  function renderRankTribos(){
+    const all = activeTribes().slice().sort(function(a,b){ return (b.points||0) - (a.points||0); });
+    const perPage = 20;
+    rankTribesPage = renderPagination('paginationTribos', all.length, rankTribesPage, perPage, function(p){
+      rankTribesPage = p; renderRankTribos();
+    });
+    const startIdx = (rankTribesPage-1)*perPage;
+    const pageItems = all.slice(startIdx, startIdx+perPage);
+    const body = el('rankTribosBody');
+    if(!all.length){ body.innerHTML = '<tr><td colspan="7" class="empty-note">Nenhuma tribo formada ainda.</td></tr>'; return; }
+    const prevRank = state.prevTribeRank || {};
+    body.innerHTML = pageItems.map(function(t,i){
+      const pos = startIdx+i+1;
+      const posClass = pos===1?'top1':pos===2?'top2':pos===3?'top3':'';
+      const ageDays = state.day - (t.founded||state.day);
+      return '<tr>'+
+        '<td class="pos '+posClass+'">'+arrowHtml(pos, prevRank[t.id])+' '+pos+'</td>'+
+        '<td class="ptribe"><span class="tribe-chip"><span class="dot" style="background:'+t.color+'"></span>['+t.tag+']</span></td>'+
+        '<td>'+esc(t.name)+'</td>'+
+        '<td>'+t.memberIds.length+' / '+CFG.MAX_MEMBERS+'</td>'+
+        '<td>'+(t.villageCount||0)+'</td>'+
+        '<td class="pts">'+(t.warConquered||0)+'</td>'+
+        '<td class="pts">'+fmt(t.points||0)+'</td>'+
+        '<td>'+ageDays+'d</td>'+
+      '</tr>';
+    }).join('');
+  }
+
+  const EVENT_ICONS = {
+    conquest:'\u2694\uFE0F', war:'\uD83D\uDCA5', alliance:'\uD83E\uDD1D', peace:'\u270C\uFE0F', tribe_founded:'\uD83C\uDFF3\uFE0F',
+    member_joined:'\u2795', member_left:'\u2796', tribe_disbanded:'\uD83D\uDC80', eliminated:'\u2620\uFE0F', info:'\u2139\uFE0F'
+  };
+  function renderEventos(){
+    const list = el('eventsList');
+    if(!state.events.length){ list.innerHTML = '<li class="empty-note" style="border:none;">Nenhum evento ainda.</li>'; return; }
+    list.innerHTML = state.events.slice(0,300).map(function(e){
+      return '<li class="ev-'+e.type+'">'+
+        '<span class="ico">'+(EVENT_ICONS[e.type]||'\u2022')+'</span>'+
+        '<span class="day">Dia '+e.day+'</span>'+
+        '<span class="txt">'+e.text+'</span>'+
+      '</li>';
+    }).join('');
+  }
+
+  function renderGuerras(){
+    const s = state.stats;
+    const activeWars = Object.entries(state.relations).filter(function(kv){return kv[1].type==='war';});
+    const activeAlliances = Object.entries(state.relations).filter(function(kv){return kv[1].type==='alliance';});
+    let totalWarConquered = 0;
+    for(const t of Object.values(state.tribes)) totalWarConquered += (t.warConquered||0);
+
+    el('warStatGrid').innerHTML =
+      '<div class="card stat-card"><div class="num">'+activeWars.length+'</div><div class="lbl">Guerras ativas agora</div></div>'+
+      '<div class="card stat-card"><div class="num">'+s.warsDeclared+'</div><div class="lbl">Guerras declaradas (total)</div></div>'+
+      '<div class="card stat-card"><div class="num">'+activeAlliances.length+'</div><div class="lbl">Aliancas ativas agora</div></div>'+
+      '<div class="card stat-card"><div class="num">'+s.battles+'</div><div class="lbl">Batalhas travadas</div></div>'+
+      '<div class="card stat-card"><div class="num">'+s.conquests+'</div><div class="lbl">Aldeias conquistadas (total)</div></div>'+
+      '<div class="card stat-card"><div class="num">'+totalWarConquered+'</div><div class="lbl">Conquistas em guerra</div></div>'+
+      '<div class="card stat-card"><div class="num">'+s.tribesDisbanded+'</div><div class="lbl">Tribos derrotadas</div></div>'+
+      '<div class="card stat-card"><div class="num">'+s.playersEliminated+'</div><div class="lbl">Jogadores eliminados</div></div>';
+
+    const warsBody = activeWars.map(function(kv){
+      const parts = kv[0].split('_').map(Number);
+      const rel = kv[1];
+      const a = state.tribes[parts[0]], b = state.tribes[parts[1]];
+      if(!a || !b || a.disbanded || b.disbanded) return '';
+      const ca = (rel.tally && rel.tally[a.id]) || 0;
+      const cb = (rel.tally && rel.tally[b.id]) || 0;
+      return '<div class="war-pair">'+
+        '<span class="war-side"><span class="dot" style="background:'+a.color+'"></span>['+a.tag+'] '+esc(a.name)+'</span>'+
+        '<span class="war-tally">conquistou '+ca+' \u00b7 perdeu '+cb+'</span>'+
+        '<span class="war-vs">VS</span>'+
+        '<span class="war-side"><span class="dot" style="background:'+b.color+'"></span>['+b.tag+'] '+esc(b.name)+'</span>'+
+        '<span class="war-tally">conquistou '+cb+' \u00b7 perdeu '+ca+'</span>'+
+        '<span style="margin-left:auto; color:var(--muted); font-family:var(--font-mono); font-size:11px;">desde o dia '+rel.since+'</span>'+
+      '</div>';
+    }).join('');
+    el('activeWarsCard').innerHTML = warsBody || '<div class="empty-note">Nenhuma guerra em andamento no momento.</div>';
+
+    const lossTribes = Object.values(state.tribes).filter(function(t){ return (t.warConquered||0) > 0 || (t.warLost||0) > 0; })
+      .sort(function(a,b){ return ((b.warConquered||0)-(b.warLost||0)) - ((a.warConquered||0)-(a.warLost||0)); });
+    const lb = el('warLossBody');
+    if(!lossTribes.length){ lb.innerHTML = '<tr><td colspan="6" class="empty-note">Nenhum combate entre tribos em guerra ainda.</td></tr>'; }
+    else {
+      lb.innerHTML = lossTribes.slice(0,30).map(function(t,i){
+        const saldo = (t.warConquered||0) - (t.warLost||0);
+        return '<tr'+(t.disbanded?' class="tribe-defeated"':'')+'>'+
+          '<td class="pos">'+(i+1)+'</td>'+
+          '<td class="ptribe"><span class="tribe-chip"><span class="dot" style="background:'+t.color+'"></span>['+t.tag+']</span></td>'+
+          '<td>'+esc(t.name)+'</td>'+
+          '<td class="pts">'+(t.warConquered||0)+'</td>'+
+          '<td class="pts">'+(t.warLost||0)+'</td>'+
+          '<td class="pts">'+(saldo>0?'+':'')+saldo+'</td>'+
+        '</tr>';
+      }).join('');
+    }
+
+    const warriorTribes = Object.values(state.tribes).filter(function(t){ return (t.conquests||0)>0; })
+      .sort(function(a,b){ return (b.conquests||0)-(a.conquests||0); });
+    const wbody = el('warriorTribesBody');
+    if(!warriorTribes.length){ wbody.innerHTML = '<tr><td colspan="4" class="empty-note">Nenhuma conquista registrada ainda.</td></tr>'; }
+    else {
+      wbody.innerHTML = warriorTribes.slice(0,20).map(function(t,i){
+        return '<tr'+(t.disbanded?' class="tribe-defeated"':'')+'>'+
+          '<td class="pos">'+(i+1)+'</td>'+
+          '<td class="ptribe"><span class="tribe-chip"><span class="dot" style="background:'+t.color+'"></span>['+t.tag+']</span></td>'+
+          '<td>'+esc(t.name)+'</td>'+
+          '<td class="pts">'+t.conquests+'</td>'+
+        '</tr>';
+      }).join('');
+    }
+  }
+
+  function renderActiveTab(){
+    if(activeTab==='mapa'){ renderMap(); renderLegend(); renderEventos(); }
+    else if(activeTab==='rankJogadores'){ renderRankJogadores(); }
+    else if(activeTab==='rankTribos'){ renderRankTribos(); }
+    else if(activeTab==='guerras'){ renderGuerras(); }
+  }
+
+  function renderAll(){ renderHeaderBar(); renderActiveTab(); }
+
+  /* ---------------- LOOP CONTROL ---------------- */
+  function tick(){
+    tickAccum += speed;
+    while(tickAccum >= 1){ simulateOneDay(); tickAccum -= 1; }
+    renderAll();
+  }
+  function startLoop(){
+    if(timer) clearInterval(timer);
+    timer = setInterval(function(){ if(!paused) tick(); }, CFG.TICK_MS);
+  }
+
+  /* ---------------- UI WIRING ---------------- */
+  document.querySelectorAll('nav.tabs button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('nav.tabs button').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+      activeTab = btn.dataset.tab;
+      el('panel-'+activeTab).classList.add('active');
+      renderActiveTab();
+    });
+  });
+
+  el('btnPause').addEventListener('click', function(){
+    paused = !paused;
+    el('btnPause').textContent = paused ? 'Retomar' : 'Pausar';
+    el('btnPause').classList.toggle('active', paused);
+  });
+  function setSpeed(v, btn){
+    speed = v;
+    document.querySelectorAll('#sp05,#sp1,#sp3,#sp10').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+  el('sp05').addEventListener('click', function(){ setSpeed(0.5, el('sp05')); });
+  el('sp1').addEventListener('click', function(){ setSpeed(1, el('sp1')); });
+  el('sp3').addEventListener('click', function(){ setSpeed(3, el('sp3')); });
+  el('sp10').addEventListener('click', function(){ setSpeed(10, el('sp10')); });
+  el('btnReset').addEventListener('click', function(){
+    tickAccum = 0;
+    initWorld();
+    computeAggregates();
+    updateRankSnapshots();
+    renderAll();
+  });
+
+  function applyMapView(){
+    const svg = el('mapSvg');
+    if(svg) svg.setAttribute('viewBox', mapView.x+' '+mapView.y+' '+mapView.w+' '+mapView.h);
+  }
+  function panMap(dx,dy){
+    mapView.x = clamp(mapView.x+dx, 0, CFG.WORLD-mapView.w);
+    mapView.y = clamp(mapView.y+dy, 0, CFG.WORLD-mapView.h);
+    applyMapView();
+  }
+  function zoomMap(delta){
+    const centerX = mapView.x + mapView.w/2;
+    const centerY = mapView.y + mapView.h/2;
+    const newSize = clamp(mapView.w + delta, 20, CFG.WORLD);
+    mapView.w = newSize; mapView.h = newSize;
+    mapView.x = clamp(centerX - newSize/2, 0, CFG.WORLD-newSize);
+    mapView.y = clamp(centerY - newSize/2, 0, CFG.WORLD-newSize);
+    applyMapView();
+  }
+  const navUp = document.querySelector('.map-nav .nav-up');
+  const navDown = document.querySelector('.map-nav .nav-down');
+  const navLeft = document.querySelector('.map-nav .nav-left');
+  const navRight = document.querySelector('.map-nav .nav-right');
+  const navReset = document.querySelector('.map-nav .nav-reset');
+  const navZoomIn = document.querySelector('.map-nav .nav-zoom-in');
+  const navZoomOut = document.querySelector('.map-nav .nav-zoom-out');
+  if(navUp) navUp.addEventListener('click', function(){ panMap(0,-12); });
+  if(navDown) navDown.addEventListener('click', function(){ panMap(0,12); });
+  if(navLeft) navLeft.addEventListener('click', function(){ panMap(-12,0); });
+  if(navRight) navRight.addEventListener('click', function(){ panMap(12,0); });
+  if(navReset) navReset.addEventListener('click', function(){ mapView.x=25; mapView.y=25; mapView.w=50; mapView.h=50; applyMapView(); });
+  if(navZoomIn) navZoomIn.addEventListener('click', function(){ zoomMap(-15); });
+  if(navZoomOut) navZoomOut.addEventListener('click', function(){ zoomMap(15); });
+
+  /* ---------------- BOOT ---------------- */
+  initWorld();
+  computeAggregates();
+  updateRankSnapshots();
+  renderAll();
+  startLoop();
+
+})();
+</script>
+</body>
+</html>
